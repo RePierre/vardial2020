@@ -18,7 +18,7 @@ def run(args):
                         category_labels_file=args.category_labels_file)
     ds.initialize()
     samples_train, samples_test, labels_train, labels_test = train_test_split(
-        ds.samples[:100], ds.dialect_labels[:100])
+        ds.samples, ds.dialect_labels)
 
     logging.info('Training tokenizer on text...')
     tokenizer = Tokenizer(char_level=True)
