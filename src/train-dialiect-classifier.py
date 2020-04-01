@@ -42,7 +42,10 @@ def run(args):
     train_batch_generator = SingleSampleBatchGenerator(tokenizer,
                                                        samples_train,
                                                        labels_train)
-    model.fit_generator(train_batch_generator, epochs=args.num_epochs)
+    model.fit_generator(train_batch_generator,
+                        epochs=args.num_epochs,
+                        workers=args.num_train_workers,
+                        use_multiprocessing=args.use_multiprocessing)
 
     logging.info('Scoring the model...')
     eval_batch_generator = SingleSampleBatchGenerator(tokenizer, samples_test,
@@ -106,6 +109,14 @@ def parse_arguments():
         help="Specifies the number of samples to use for debugging.",
         type=int,
         default=100)
+    parser.add_argument('--num-train-workers',
+                        help='The number of workers to use for training.',
+                        type=int,
+                        default=1)
+    parser.add_argument(
+        '--use-multiprocessing',
+        help='Specifies whether to use or not multiprocessing when training.',
+        action='store_true')
     return parser.parse_args()
 
 
