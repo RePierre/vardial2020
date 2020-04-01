@@ -121,18 +121,21 @@ class SingleSampleBatchGenerator(Sequence):
     Adapted from https://datascience.stackexchange.com/a/48814/45850
 
     """
-    def __init__(self, samples, labels):
+    def __init__(self, tokenizer, samples, labels):
         """
         Initalizes an instance of SingleSampleBatchGenerator.
 
         Parameters
         ----------
-        samples: list of numpy.ndarray
+        tokenizer: keras.preprocessing.text.Tokenizer
+            The trained tokenizer used to transform a sample into a matrix.
+        samples: list of text
             The samples to be batched.
-        labels: list of numpy.ndarray
+        labels: list integers
             The labels associated with the samples.
         """
         super(SingleSampleBatchGenerator, self).__init__()
+        self.tokenizer = tokenizer
         self.samples = samples
         self.labels = labels
 
@@ -146,9 +149,11 @@ class SingleSampleBatchGenerator(Sequence):
         """
         Returns the batch at the specified index.
         """
-        samples_batch = np.empty((1, *self.samples[index].shape))
-        labels_batch = np.empty((1, *self.labels[index].shape))
+        x = self.tokenizer.texts_to_matrix(self.samples[index])
+        y = np.zeros((1, 2))
+        y[0, self.labels[index] - 1] = 1
 
-        samples_batch[0] = self.samples[index]
-        labels_batch[0] = self.labels[index]
-        return samples_batch, labels_batch
+        sample_shape = x.shape
+        x = np.reshape(x, (1, *sample_shape))
+
+        return x, y

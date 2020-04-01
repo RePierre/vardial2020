@@ -2,7 +2,6 @@ import logging
 from argparse import ArgumentParser
 
 from keras.preprocessing.text import Tokenizer
-from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 
 from input import VarDialDataSet
@@ -30,15 +29,14 @@ def run(args):
                                                encoding_dim, args.dropout_rate)
     print(model.summary())
     logging.info('Training the model...')
-    train_batch_generator = SingleSampleBatchGenerator(
-        [tokenizer.texts_to_matrix(x) for x in samples_train],
-        to_categorical([y - 1 for y in labels_train]))
+    train_batch_generator = SingleSampleBatchGenerator(tokenizer,
+                                                       samples_train,
+                                                       labels_train)
     model.fit_generator(train_batch_generator, epochs=args.num_epochs)
 
     logging.info('Scoring the model...')
-    eval_batch_generator = SingleSampleBatchGenerator(
-        [tokenizer.texts_to_matrix(x) for x in samples_test],
-        to_categorical([y - 1 for y in labels_test]))
+    eval_batch_generator = SingleSampleBatchGenerator(tokenizer, samples_test,
+                                                      labels_test)
     score, acc = model.evaluate_generator(eval_batch_generator)
     print('Test score: {}'.format(score))
     print('Test accuracy: {}.'.format(acc))
