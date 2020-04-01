@@ -16,8 +16,18 @@ def run(args):
                         dialect_labels_file=args.dialect_labels_file,
                         category_labels_file=args.category_labels_file)
     ds.initialize()
-    samples_train, samples_test, labels_train, labels_test = train_test_split(
-        ds.samples, ds.dialect_labels)
+    samples = ds.samples
+    labels = ds.dialect_labels
+
+    if args.debug:
+        logging.info(
+            'Running in debug mode. Dataset is restricted to {} samples.'.
+            format(args.num_debug_samples))
+        samples = ds.samples[:args.num_debug_samples]
+        labels = ds.dialect_labels[:args.num_debug_samples]
+
+    samples_train, samples_test, \
+        labels_train, labels_test = train_test_split(samples, labels)
 
     logging.info('Training tokenizer on text...')
     tokenizer = Tokenizer(char_level=True)
@@ -83,11 +93,19 @@ def parse_arguments():
                         default=15)
     parser.add_argument(
         '--no-shuffle-before-predict',
-        help='Specifies whether to shuffle the data before making predictions.',
+        help='Do not shuffle the data before making predictions.',
         action='store_false')
     parser.add_argument('--save-model-to',
                         help='Path to the directory where to save the model.',
                         default='.')
+    parser.add_argument('--debug',
+                        help='Signals that the script is in debug mode.',
+                        action='store_true')
+    parser.add_argument(
+        '--num-debug-samples',
+        help="Specifies the number of samples to use for debugging.",
+        type=int,
+        default=100)
     return parser.parse_args()
 
 
