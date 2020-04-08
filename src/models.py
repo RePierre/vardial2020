@@ -1,18 +1,21 @@
 import numpy as np
-from keras.layers import LSTM, Dense, Dropout
+from keras.layers import LSTM, Dense, Dropout, Masking
 from keras.models import Sequential
 from keras.optimizers import Adam
 from keras.utils import Sequence
 import os
 import json
 import time
+import sys
 
 
 def build_dialect_classification_model(lstm_output_dim=128,
+                                       sequence_length=3000,
                                        encoding_dimensions=247,
                                        dropout_rate=0.3,
                                        output_activation='tanh',
-                                       loss='categorical_crossentropy',
+                                       loss='mean_squared_error',
+                                       mask_value=-13,
                                        random_seed=2020):
     """
     Creates and compiles a sequential model for dialect classification.
@@ -22,6 +25,8 @@ def build_dialect_classification_model(lstm_output_dim=128,
     lstm_output_dim:integer, optional
         The number of dimensions of the LSTM output.
         Default is 128.
+    sequence_length: integer
+        The length of the sequence. Default is 3000.
     encoding_dimensions: integer, optional
         The size of the array representing a single character.
         Default is 247.
@@ -32,11 +37,16 @@ def build_dialect_classification_model(lstm_output_dim=128,
         Default is 'tanh'.
     loss: string, optional
         The loss function. Default is 'categorical_crossentropy'.
+    mask_value: float, otional
+        The value to be used for Masking layer. Default is -13.
     random_seed:integer, optional
         The seed for random number generator. Default is 2020.
     """
     model = Sequential()
-    model.add(LSTM(lstm_output_dim, input_shape=(None, encoding_dimensions)))
+    model.add(
+        Masking(mask_value=mask_value,
+                input_shape=(sequence_length, encoding_dimensions)))
+    model.add(LSTM(lstm_output_dim))
     model.add(Dropout(dropout_rate, seed=random_seed))
     model.add(Dense(2, activation=output_activation))
     optimizer = Adam()
