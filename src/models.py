@@ -101,6 +101,33 @@ def test_model(model,
         print("Label: {}, prediction: {}".format(label, pred))
 
 
+def test_model_using_generator(model, generator, num_predictions=None):
+    """
+    Tests the model predictions using a generator that properly reshapes samples.
+
+    Parameters
+    ----------
+    model: keras.models.Sequential
+        The dialect classification model.
+    generator: SequencePaddingBatchGenerator
+        The generator that reshapes input into sequences of
+        shape (1, max_length, encoding_dim).
+    num_predictions: integer, optional
+        Restrict test to `num_predictions`.
+        Default is `None` which means test all samples.
+    """
+    if num_predictions is None:
+        num_predictions = sys.maxint
+    for i, item in enumerate(generator):
+        x, y = item
+        y_1 = model.predict(x)
+        pred = np.argmax(y_1) + 1
+        label = np.argmax(y) + 1
+        print("Label: {}, prediction: {}".format(label, pred))
+        if i >= num_predictions:
+            break
+
+
 def save_model(model, tokenizer, output_path):
     """
     Saves the model and tokenizer to te specified path.
