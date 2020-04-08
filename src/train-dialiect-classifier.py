@@ -6,7 +6,10 @@ from sklearn.model_selection import train_test_split
 
 from input import VarDialDataSet
 from models import build_dialect_classification_model
-from models import SingleSampleBatchGenerator, save_model, test_model
+from models import save_model
+from models import SequencePaddingBatchGenerator
+from models import get_max_sequence_length
+from models import test_model_using_generator
 
 
 def run(args):
@@ -34,31 +37,30 @@ def run(args):
     tokenizer.fit_on_texts(samples_train)
 
     logging.info('Building model...')
+    max_len = get_max_sequence_length(samples_train)
     encoding_dim = tokenizer.texts_to_matrix(samples_train[0]).shape[1]
-    model = build_dialect_classification_model(args.lstm_output_dim,
+    model = build_dialect_classification_model(args.lstm_output_dim, max_len,
                                                encoding_dim, args.dropout_rate)
     print(model.summary())
     logging.info('Training the model...')
-    train_batch_generator = SingleSampleBatchGenerator(tokenizer,
-                                                       samples_train,
-                                                       labels_train)
-    model.fit_generator(train_batch_generator,
-                        epochs=args.num_epochs,
-                        workers=args.num_train_workers,
-                        use_multiprocessing=args.use_multiprocessing)
+    train_batch_generator = SequencePaddingBatchGenerator(
+        tokenizer, samples_train, labels_train, max_len, args.batch_size)
+    model.fit_generator(train_batch_generator, epochs=args.num_epochs)
 
     logging.info('Scoring the model...')
-    eval_batch_generator = SingleSampleBatchGenerator(tokenizer, samples_test,
-                                                      labels_test)
+    eval_batch_generator = SequencePaddingBatchGenerator(
+        tokenizer, samples_test, labels_test, max_len, args.batch_size)
     score, acc = model.evaluate_generator(eval_batch_generator)
     print('Test score: {}'.format(score))
     print('Test accuracy: {}.'.format(acc))
-    test_model(model,
-               tokenizer,
-               samples_test,
-               labels_test,
-               num_predictions=args.num_predictions,
-               shuffle=not args.no_shuffle_before_predict)
+    test_generator = SequencePaddingBatchGenerator(tokenizer,
+                                                   samples_test,
+                                                   labels_test,
+                                                   max_len,
+                                                   batch_size=1)
+    test_model_using_generator(model,
+                               test_generator,
+                               num_predictions=args.num_predictions)
     logging.info('Saving model and tokenizer...')
     save_model(model, tokenizer, args.save_model_to)
     logging.info("That's all folks!")
@@ -94,10 +96,6 @@ def parse_arguments():
                         help='Number of predictions to make on test data.',
                         type=int,
                         default=15)
-    parser.add_argument(
-        '--no-shuffle-before-predict',
-        help='Do not shuffle the data before making predictions.',
-        action='store_false')
     parser.add_argument('--save-model-to',
                         help='Path to the directory where to save the model.',
                         default='.')
@@ -109,14 +107,10 @@ def parse_arguments():
         help="Specifies the number of samples to use for debugging.",
         type=int,
         default=100)
-    parser.add_argument('--num-train-workers',
-                        help='The number of workers to use for training.',
+    parser.add_argument('--batch-size',
+                        help="Batch size for training.",
                         type=int,
-                        default=1)
-    parser.add_argument(
-        '--use-multiprocessing',
-        help='Specifies whether to use or not multiprocessing when training.',
-        action='store_true')
+                        default=16)
     return parser.parse_args()
 
 
