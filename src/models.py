@@ -247,3 +247,22 @@ class SequencePaddingBatchGenerator(Sequence):
         return x.shape[1]
 
 
+def get_max_sequence_length(samples, coefficient=0.2):
+    """
+    Returns the maximum length of sample sequences plus a buffer.
+
+    Parameters
+    ----------
+    samples: list of strings
+        The training samples.
+    coefficient: float
+        The coefficient by which to multiply the maximum
+        sequence length determined from data.
+
+    Returns
+    -------
+    max_len: integer
+        The maximum sequence length.
+    """
+    max_len = max([len(s) for s in samples])
+    return int(np.ceil(max_len + max_len * coefficient))
