@@ -118,4 +118,16 @@ if __name__ == '__main__':
     ds = VarDialDataSet('/data')
     ds.initialize()
     ds.preview()
+
+    from itertools import groupby
+
+    logging.info("Computing dataset stats...")
+    print("Dataset statistics")
+    print("Total samples: {}".format(len(ds.samples)))
+    print("Samples per dialect label:")
+    for key, collection in groupby(sorted(ds.dialect_labels)):
+        print("Dialect {}: {}".format(key, len(list(collection))))
+    print("Samples per category label:")
+    for key, collection in groupby(sorted(ds.category_labels)):
+        print("Category {}: {}".format(key, len(list(collection))))
     logging.info("That's all folks!")
