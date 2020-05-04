@@ -1,35 +1,29 @@
 import numpy as np
-from keras.layers import LSTM, Dense, Dropout, Masking
+from keras.layers import Dense
+from keras.layers import Dropout
+from keras.layers import Conv1D
+from keras.layers import GlobalMaxPool1D
+from keras.layers import Activation
 from keras.models import Sequential
 from keras.optimizers import Adam
 from keras.utils import Sequence
+from scipy.sparse import csr_matrix
 import os
-import json
 import time
-import sys
+import pickle
 
 
-def build_dialect_classification_model(lstm_output_dim=128,
-                                       sequence_length=3000,
-                                       encoding_dimensions=247,
+def build_dialect_classification_model(input_shape,
                                        dropout_rate=0.3,
-                                       output_activation='tanh',
-                                       loss='mean_squared_error',
-                                       mask_value=-13,
+                                       loss='categorical_crossentropy',
                                        random_seed=2020):
     """
     Creates and compiles a sequential model for dialect classification.
 
     Parameters
     ----------
-    lstm_output_dim:integer, optional
-        The number of dimensions of the LSTM output.
-        Default is 128.
-    sequence_length: integer
-        The length of the sequence. Default is 3000.
-    encoding_dimensions: integer, optional
-        The size of the array representing a single character.
-        Default is 247.
+    input_shape: tuple
+        The shape of the input data.
     dropout_rate: float, optional
         The fraction of the LSTM outputs to drop. Default is 0.3.
     output_activation: string, optional
@@ -37,21 +31,52 @@ def build_dialect_classification_model(lstm_output_dim=128,
         Default is 'tanh'.
     loss: string, optional
         The loss function. Default is 'categorical_crossentropy'.
-    mask_value: float, otional
-        The value to be used for Masking layer. Default is -13.
     random_seed:integer, optional
         The seed for random number generator. Default is 2020.
     """
     model = Sequential()
     model.add(
-        Masking(mask_value=mask_value,
-                input_shape=(sequence_length, encoding_dimensions)))
-    model.add(LSTM(lstm_output_dim))
+        Conv1D(filters=256,
+               kernel_size=3,
+               padding='valid',
+               activation='relu',
+               strides=1,
+               input_shape=input_shape))
+    model.add(GlobalMaxPool1D())
+    model.add(Dense(128))
     model.add(Dropout(dropout_rate, seed=random_seed))
-    model.add(Dense(2, activation=output_activation))
+    model.add(Activation('relu'))
+    model.add(Dense(2))
+    model.add(Activation('sigmoid'))
+
     optimizer = Adam()
     model.compile(optimizer, loss=loss, metrics=['accuracy'])
     return model
+
+
+def reshape_input_data(x_ro, x_md):
+    """
+    Concatenates the input data into shape (num_samples, sample_size, 2).
+
+
+    Parameters
+    ----------
+    x_ro: sparse matrix
+        TF-IDF encoding of Romanian input samples.
+    x_md: sparse matrix
+        TF-IDF encoding of Moldavian input samples.
+
+    Returns
+    -------
+    result
+        Numpy ndarray representing the concatenated data.
+    """
+    assert x_ro.shape == x_md.shape
+    num_samples, sample_size = x_ro.shape
+    result = np.stack([csr_matrix.toarray(x_ro),
+                       csr_matrix.toarray(x_md)],
+                      axis=-1)
+    return result
 
 
 def test_model(model,
@@ -101,43 +126,18 @@ def test_model(model,
         print("Label: {}, prediction: {}".format(label, pred))
 
 
-def test_model_using_generator(model, generator, num_predictions=None):
+def save_model(model, ro_vectorizer, md_vectorizer, output_path):
     """
-    Tests the model predictions using a generator that properly reshapes samples.
+    Saves the model and TF-IDF vectorizers to te specified path.
 
     Parameters
     ----------
     model: keras.models.Sequential
         The dialect classification model.
-    generator: SequencePaddingBatchGenerator
-        The generator that reshapes input into sequences of
-        shape (1, max_length, encoding_dim).
-    num_predictions: integer, optional
-        Restrict test to `num_predictions`.
-        Default is `None` which means test all samples.
-    """
-    if num_predictions is None:
-        num_predictions = sys.maxint
-    for i, item in enumerate(generator):
-        x, y = item
-        y_1 = model.predict(x)
-        pred = np.argmax(y_1) + 1
-        label = np.argmax(y) + 1
-        print("Label: {}, prediction: {}".format(label, pred))
-        if i >= num_predictions:
-            break
-
-
-def save_model(model, tokenizer, output_path):
-    """
-    Saves the model and tokenizer to te specified path.
-
-    Parameters
-    ----------
-    model: keras.models.Sequential
-        The dialect classification model.
-    tokenizer: keras.preprocessing.text.Tokenizer
-        The text tokenizer.
+    ro_vectorizer: sklearn TfIdfVectorizer
+        The vectorizer trained on Romanian dialect.
+    md_vectorizer: sklearn TfIdfVectorizer
+        The vectorizer trained on Moldavian dialect.
     output_path: string
         The directory where to save model and tokenizer.
     """
@@ -145,11 +145,14 @@ def save_model(model, tokenizer, output_path):
     file_name = 'dialect-classifier-model-{}.h5'.format(file_suffix)
     model.save(os.path.join(output_path, file_name))
 
-    file_name = 'tokenizer-{}.json'.format(file_suffix)
-    tokenizer_json = tokenizer.to_json()
-    file_name = os.path.join(output_path, file_name)
-    with open(file_name, 'w', encoding='utf-8') as f:
-        f.write(json.dumps(tokenizer_json, ensure_ascii=False))
+    def save_vectorizer(vectorizer, vectorizer_type):
+        file_name = '{}-vectorizer-{}.pkl'.format(vectorizer_type, file_suffix)
+        file_name = os.path.join(output_path, file_name)
+        with open(file_name, 'wb') as f:
+            pickle.dump(vectorizer, f)
+
+    save_vectorizer(ro_vectorizer, 'ro')
+    save_vectorizer(md_vectorizer, 'md')
 
 
 class SingleSampleBatchGenerator(Sequence):
@@ -303,3 +306,23 @@ def get_max_sequence_length(samples, coefficient=0.2):
     """
     max_len = max([len(s) for s in samples])
     return int(np.ceil(max_len + max_len * coefficient))
+
+
+def encode_dialect_labels(dialect_labels):
+    """
+    Encodes the dialect labels into one-hot representation.
+
+    Parameters
+    ----------
+    dialect_labels: iterable of integer
+        The dialect labels.
+
+    Returns:
+    labels_encoded
+        The encoded dialect labels.
+    """
+    y = np.zeros((len(dialect_labels), 2))
+    for i, l in enumerate(dialect_labels):
+        y[i, l - 1] = 1
+
+    return y

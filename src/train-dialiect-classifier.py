@@ -1,15 +1,13 @@
 import logging
 from argparse import ArgumentParser
-
-from keras.preprocessing.text import Tokenizer
 from sklearn.model_selection import train_test_split
-
 from input import VarDialDataSet
 from models import build_dialect_classification_model
+from models import reshape_input_data
+from models import encode_dialect_labels
 from models import save_model
-from models import SequencePaddingBatchGenerator
-from models import get_max_sequence_length
-from models import test_model_using_generator
+from feature_extraction import train_dialect_vectorizers
+from feature_extraction import build_common_vocabulary
 
 
 def run(args):
@@ -32,37 +30,33 @@ def run(args):
     samples_train, samples_test, \
         labels_train, labels_test = train_test_split(samples, labels)
 
-    logging.info('Training tokenizer on text...')
-    tokenizer = Tokenizer(char_level=True)
-    tokenizer.fit_on_texts(samples_train)
+    logging.info('Training vectorizers on text...')
+    vocab = build_common_vocabulary(samples_train)
+    ro, md = train_dialect_vectorizers(samples_train, labels_train, vocab)
+    logging.info('Reshaping input data...')
+    x = reshape_input_data(ro.transform(samples_train),
+                           md.transform(samples_train))
+    print(x.shape)
 
     logging.info('Building model...')
-    max_len = get_max_sequence_length(samples_train)
-    encoding_dim = tokenizer.texts_to_matrix(samples_train[0]).shape[1]
-    model = build_dialect_classification_model(args.lstm_output_dim, max_len,
-                                               encoding_dim, args.dropout_rate)
+    model = build_dialect_classification_model(x.shape[1:], args.dropout_rate)
     print(model.summary())
+
     logging.info('Training the model...')
-    train_batch_generator = SequencePaddingBatchGenerator(
-        tokenizer, samples_train, labels_train, max_len, args.batch_size)
-    model.fit_generator(train_batch_generator, epochs=args.num_epochs)
+    y = encode_dialect_labels(labels_train)
+    print(y.shape)
+    model.fit(x=x, y=y, batch_size=args.batch_size, epochs=args.num_epochs)
 
     logging.info('Scoring the model...')
-    eval_batch_generator = SequencePaddingBatchGenerator(
-        tokenizer, samples_test, labels_test, max_len, args.batch_size)
-    score, acc = model.evaluate_generator(eval_batch_generator)
+    x = reshape_input_data(ro.transform(samples_test),
+                           md.transform(samples_test))
+    y = encode_dialect_labels(labels_test)
+    score, acc = model.evaluate(x=x, y=y, batch_size=args.batch_size)
     print('Test score: {}'.format(score))
     print('Test accuracy: {}.'.format(acc))
-    test_generator = SequencePaddingBatchGenerator(tokenizer,
-                                                   samples_test,
-                                                   labels_test,
-                                                   max_len,
-                                                   batch_size=1)
-    test_model_using_generator(model,
-                               test_generator,
-                               num_predictions=args.num_predictions)
-    logging.info('Saving model and tokenizer...')
-    save_model(model, tokenizer, args.save_model_to)
+
+    logging.info('Saving model and vectorizers...')
+    save_model(model, ro, md, args.save_model_to)
     logging.info("That's all folks!")
 
 
@@ -80,14 +74,10 @@ def parse_arguments():
     parser.add_argument('--category-labels-file',
                         help='The file containing category labels.',
                         default='category_labels.txt')
-    parser.add_argument('--lstm-output-dim',
-                        help='The number of dimensions of the LSTM output.',
-                        type=int,
-                        default=128)
     parser.add_argument('--dropout-rate',
-                        help='Fraction of the LSTM outputs to drop.',
+                        help='Dropout rate.',
                         type=float,
-                        default=0.3)
+                        default=0.2)
     parser.add_argument('--num-epochs',
                         help='Number of training epochs.',
                         type=int,
