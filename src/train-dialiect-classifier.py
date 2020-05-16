@@ -3,11 +3,11 @@ from argparse import ArgumentParser
 from sklearn.model_selection import train_test_split
 from input import VarDialDataSet
 from models import build_dialect_classification_model
-from models import reshape_input_data
-from models import encode_dialect_labels
+from utils import reshape_input_data
 from models import save_model
 from feature_extraction import train_dialect_vectorizers
 from feature_extraction import build_common_vocabulary
+from generators import BatchGenerator
 
 
 def run(args):
@@ -33,9 +33,10 @@ def run(args):
     logging.info('Training vectorizers on text...')
     vocab = build_common_vocabulary(samples_train)
     ro, md = train_dialect_vectorizers(samples_train, labels_train, vocab)
+
     logging.info('Reshaping input data...')
-    x = reshape_input_data(ro.transform(samples_train),
-                           md.transform(samples_train))
+    x = reshape_input_data(ro.transform(samples_train[:1]),
+                           md.transform(samples_train[:1]))
     print(x.shape)
 
     logging.info('Building model...')
@@ -43,15 +44,20 @@ def run(args):
     print(model.summary())
 
     logging.info('Training the model...')
-    y = encode_dialect_labels(labels_train)
-    print(y.shape)
-    model.fit(x=x, y=y, batch_size=args.batch_size, epochs=args.num_epochs)
+    train_generator = BatchGenerator(samples_train,
+                                     labels_train,
+                                     ro,
+                                     md,
+                                     batch_size=args.batch_size)
+    model.fit_generator(train_generator, epochs=args.num_epochs)
 
     logging.info('Scoring the model...')
-    x = reshape_input_data(ro.transform(samples_test),
-                           md.transform(samples_test))
-    y = encode_dialect_labels(labels_test)
-    score, acc = model.evaluate(x=x, y=y, batch_size=args.batch_size)
+    test_generator = BatchGenerator(samples_test,
+                                    labels_test,
+                                    ro,
+                                    md,
+                                    batch_size=args.batch_size)
+    score, acc = model.evaluate_generator(test_generator)
     print('Test score: {}'.format(score))
     print('Test accuracy: {}.'.format(acc))
 
