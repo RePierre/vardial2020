@@ -1,5 +1,7 @@
 import numpy as np
 from keras.utils import Sequence
+from utils import reshape_input_data
+from utils import encode_dialect_labels
 
 
 class SingleSampleBatchGenerator(Sequence):
@@ -48,7 +50,7 @@ class SingleSampleBatchGenerator(Sequence):
 
 class SequencePaddingBatchGenerator(Sequence):
     """
-    Generates batches of input samples.
+    Generates batches of padded input samples.
     Adapted from https://datascience.stackexchange.com/a/48814/45850
     """
     def __init__(self,
@@ -132,3 +134,73 @@ class SequencePaddingBatchGenerator(Sequence):
         """
         x = self.tokenizer.texts_to_matrix(self.samples[0])
         return x.shape[1]
+
+
+class BatchGenerator(Sequence):
+    """
+    Generates batches of input samples.
+
+    """
+    def __init__(self,
+                 samples,
+                 labels,
+                 vectorizer_romanian,
+                 vectorizer_moldavian,
+                 batch_size=32):
+        """
+        Initializes a new instance of BatchGenerator.
+
+        Parameters
+        ----------
+        samples: list of text
+            The samples to be batched.
+        labels: list integers
+            The labels associated with the samples.
+        vectorizer_romanian: TfIdfVectorizer
+            The vectorizer trained on Romanian texts.
+        vectorizer_moldavian: TfIdfVectorizer
+            The vectorizer trained on Moldavian texts.
+        batch_size: integer, optional
+            The size of each batch. Default is 32.
+        """
+        super(BatchGenerator, self).__init__()
+
+        self.samples = samples
+        self.labels = labels
+        self.vectorizer_romanian = vectorizer_romanian
+        self.vectorizer_moldavian = vectorizer_moldavian
+        self.batch_size = batch_size
+        self.indexes = np.arange(len(self.labels))
+        self.on_epoch_end()
+
+    def __len__(self):
+        """
+        Returns the number of batches per epoch.
+        """
+        return int(np.floor(len(self.labels) / self.batch_size))
+
+    def __getitem__(self, index):
+        """
+        Returns the batch at the specified index.
+        """
+        batch_start = index * self.batch_size
+        batch_end = batch_start + self.batch_size - 1
+        samples = [
+            self.samples[self.indexes[i]]
+            for i in range(batch_start, batch_end)
+        ]
+        labels = [
+            self.labels[self.indexes[i]]
+            for i in range(batch_start, batch_end)
+        ]
+
+        x = reshape_input_data(self.vectorizer_romanian.transform(samples),
+                               self.vectorizer_moldavian.transform(samples))
+        y = encode_dialect_labels(labels)
+        return x, y
+
+    def on_epoch_end(self):
+        """
+        Shuffle data indices after each epoch.
+        """
+        np.random.shuffle(self.indexes)
