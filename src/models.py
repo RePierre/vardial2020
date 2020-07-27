@@ -6,6 +6,7 @@ from keras.layers import GlobalMaxPool1D
 from keras.layers import Activation
 from keras.models import Sequential
 from keras.optimizers import Adam
+import keras
 import os
 import time
 import pickle
@@ -126,3 +127,34 @@ def save_model(model, ro_vectorizer, md_vectorizer, output_path):
 
     save_vectorizer(ro_vectorizer, 'ro')
     save_vectorizer(md_vectorizer, 'md')
+
+
+def load_model(model_path=None,
+               ro_vectorizer_path=None,
+               md_vectorizer_path=None):
+    """
+    Loads the model and TF-IDF vectorizers from the specified directory.
+
+    Parameters
+    ----------
+    model_path: string, optional
+        The path to the model file.
+    ro_vectorizer_path: string, optional
+        The path to the Romanian TF-IDF vectorizer.
+    md_vectorizer_path: string, optional
+        The path to the Moldavian TF-IDF  vectorizer.
+
+    Returns
+    -------
+    model, ro_vectorizer, md_vectorizer
+    """
+    model = keras.models.load_model(model_path)
+
+    def load_vectorizer(vectorizer_path):
+        with open(vectorizer_path, 'rb') as f:
+            return pickle.load(f)
+
+    ro_vectorizer = load_vectorizer(ro_vectorizer_path)
+    md_vectorizer = load_vectorizer(md_vectorizer_path)
+
+    return model, ro_vectorizer, md_vectorizer
