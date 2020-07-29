@@ -3,6 +3,7 @@ import numpy as np
 from argparse import ArgumentParser
 from models import load_model
 from utils import reshape_input_data
+from constants import DialectLabels
 
 
 def load_data(file_name):
@@ -46,12 +47,15 @@ def run(args):
                                                      args.md_vectorizer_path)
 
     logging.info("Start predicting.")
+    label_map = {DialectLabels.Moldavian: "MD", DialectLabels.Romanian: "RO"}
     labels = []
     for sample in samples:
         x = reshape_input_data(ro_vectorizer.transform([sample]),
                                md_vectorizer.transform([sample]))
         y = model.predict(x)
         label = np.argmax(y[0, :]) + 1
+        if not args.use_numeric_labels:
+            label = label_map[label]
         labels.append(label)
         logging.info("Predicted label [{}] for sample [{}].".format(
             label, sample))
@@ -73,6 +77,10 @@ def parse_arguments():
     parser.add_argument('--output-file',
                         help='The file where to save predicted labels.',
                         default='labels.txt')
+    parser.add_argument(
+        '--use-numeric-labels',
+        help="If specified, the output file will contain numeric labels.",
+        action='store_true')
     return parser.parse_args()
 
 
