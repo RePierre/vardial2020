@@ -36,7 +36,7 @@ def build_dialect_classification_model(input_shape,
     model = Sequential()
     model.add(
         Conv1D(filters=256,
-               kernel_size=3,
+               kernel_size=11,
                padding='valid',
                activation='relu',
                strides=1,
