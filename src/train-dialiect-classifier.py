@@ -1,13 +1,16 @@
 import logging
 from argparse import ArgumentParser
+
 from sklearn.model_selection import train_test_split
-from input import VarDialDataSet
-from models import build_dialect_classification_model
-from utils import reshape_input_data
-from models import save_model
+
 from feature_extraction import train_dialect_vectorizers
 from feature_extraction import build_common_vocabulary
 from generators import BatchGenerator
+from input import VarDialDataSet
+from models import build_dialect_classification_model
+from models import save_model
+from models import build_model_callbacks
+from utils import reshape_input_data
 
 
 def run(args):
@@ -49,7 +52,9 @@ def run(args):
                                      ro,
                                      md,
                                      batch_size=args.batch_size)
-    model.fit_generator(train_generator, epochs=args.num_epochs)
+    model.fit_generator(train_generator,
+                        epochs=args.num_epochs,
+                        callbacks=build_model_callbacks())
 
     logging.info('Scoring the model...')
     test_generator = BatchGenerator(samples_test,

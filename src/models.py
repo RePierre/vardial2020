@@ -6,6 +6,7 @@ from keras.layers import GlobalMaxPool1D
 from keras.layers import Activation
 from keras.models import Sequential
 from keras.optimizers import Adam
+from keras.callbacks import ModelCheckpoint
 import keras
 import os
 import time
@@ -57,6 +58,23 @@ def build_dialect_classification_model(input_shape,
     optimizer = Adam()
     model.compile(optimizer, loss=loss, metrics=['accuracy'])
     return model
+
+
+def build_model_callbacks():
+    """
+    Builds the callbacks to be used when training the model.
+
+    Returns
+    -------
+    callbacks: list of Keras callbacks.
+    """
+    file_name = 'dialect-classifier-model.h5'
+    checkpoint = ModelCheckpoint(file_name,
+                                 monitor='accuracy',
+                                 verbose=1,
+                                 save_best_only=True,
+                                 mode='max')
+    return [checkpoint]
 
 
 def test_model(model,
