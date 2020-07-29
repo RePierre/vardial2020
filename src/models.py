@@ -41,6 +41,12 @@ def build_dialect_classification_model(input_shape,
                activation='relu',
                strides=1,
                input_shape=input_shape))
+    model.add(
+        Conv1D(filters=256,
+               kernel_size=11,
+               padding='valid',
+               activation='relu',
+               strides=1))
     model.add(GlobalMaxPool1D())
     model.add(Dense(128))
     model.add(Dropout(dropout_rate, seed=random_seed))
