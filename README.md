@@ -1,6 +1,6 @@
 # A dual-encoding system for dialect classification @ VarDial 2020
 
-This repository contains the source-code of the dual-encoding ensemble model built by UAIC team for VarDial2020 evaluation campaign.
+This repository contains the source-code of the [dual-encoding ensemble model](https://www.aclweb.org/anthology/2020.vardial-1.20/) built by UAIC team for VarDial2020 evaluation campaign.
 
 ## Romanian Dialect Identification
 Romanian Dialect Identification (RDI) is a task introduced at the VarDial evaluation campaign<sup>[1](#vardial2020report)</sup> in 2020.
@@ -31,6 +31,7 @@ The model was trained for 25 epochs with a batch size of 32 samples for each sub
 ### Hyper-Parameters
 
 | 1D convolution         | Dropout rate | Output dimensions  | Adam optimizer       |
+|------------------------|--------------|--------------------|----------------------|
 | Number of filters: 512 |          0.3 | Dense layer 1: 128 | Learning rate: 0.001 |
 | Kernel size: 7         |              | Dense layer 2: 32  | Decay rate 1: 0.9    |
 |                        |              |                    | Decay rate 2: 0.999  |
@@ -42,6 +43,7 @@ The results presented herein are obtained using the highest performing weights f
 ### Accuracy scores
 
 | Submission | Training score | Validation score | Evaluation score |
+|------------|----------------|------------------|------------------|
 | 1          | 0.8091         | 0.7988           | 0.5553           |
 | 2          | 0.8220         | 0.8106           | 0.5402           |
 
