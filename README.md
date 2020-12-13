@@ -13,7 +13,7 @@ For this task, our team proposes an ensemble model which focuses on exploiting t
 
 Our model is built upon the architectures of the Word-Based Convolutional Neural Network<sup>[2](#elaraby2018deep)</sup>, and the Meta-classifier<sup>[3](#malmasi2017arabic)</sup> --- both developed for Arabic Dialect Identification.
 
-We developed two versions of the model --- one for each submission of the results. The second version was built from the first by adding supplementary layers depicted by the innermost rectangle in Figure~\ref{fig:architecture}.
+We developed two versions of the model --- one for each submission of the results. The second version was built from the first by adding supplementary layers.
 
 ### Core Idea
 
